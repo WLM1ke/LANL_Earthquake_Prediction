@@ -40,12 +40,12 @@ def yield_train_blocks(passes, chunk_size=TEST_SIZE):
                 yield df.x, last_time, group
 
 
-def make_features(df_x, blocks=15):
+def make_features(df_x, blocks=conf.BLOCKS):
     """Разбивает данные на блоки и создает описательную статистику для них."""
     size, res = divmod(len(df_x), blocks)
     assert df_x.shape == (TEST_SIZE,), "Неверный размер даных"
     assert not res, "Неверное количество блоков"
-    features = ["std"]
+    features = ["mean", "std", "skew",  "max", "min"]
     df_x = df_x.groupby(lambda x: x // size).agg(features).stack()
     df_x.index = df_x.index.map(lambda x: f"{x[1]}_{x[0]}")
     return df_x
@@ -67,6 +67,27 @@ def make_train_set(rebuild=False, passes=30):
     return data
 
 
+def make_test_set(rebuild=False):
+    """Формирование признаков по аналогии с тренировочным набором."""
+    path = pathlib.Path(conf.DATA_PROCESSED + f"test.pickle")
+    if not rebuild and path.exists():
+        return pd.read_pickle(path)
+    data = []
+    seg_id = pd.read_csv(conf.DATA_SUB).seg_id
+    for name in tqdm.tqdm(seg_id):
+        df = pd.read_csv(
+            conf.DATA_TEST.format(name),
+            names=["x"],
+            skiprows=1
+        )
+        feat = make_features(df.x)
+        data.append(feat)
+    data = pd.concat(data, axis=1, ignore_index=True).T
+    data.index = seg_id
+    path = pathlib.Path(conf.DATA_PROCESSED + f"test.pickle")
+    data.to_pickle(path)
+    return data
+
+
 if __name__ == '__main__':
-    print(make_train_set(passes=1))
-    make_train_set().info()
+    print(make_test_set())
