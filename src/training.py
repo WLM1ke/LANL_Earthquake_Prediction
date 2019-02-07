@@ -96,4 +96,4 @@ def train_catboost(passes, folds=FOLDS):
 
 
 if __name__ == '__main__':
-    train_catboost(30)
+    train_catboost(conf.PASSES)

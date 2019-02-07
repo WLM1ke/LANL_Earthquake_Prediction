@@ -34,7 +34,7 @@ def yield_train_blocks(passes, chunk_size=TEST_SIZE):
             if first_time < last_time:
                 group += 1
                 continue
-            # Последний не полный блок в тренировочной серии отбрасывается
+            # Последний неполный блок в тренировочной серии отбрасывается
             if len(df) == chunk_size:
                 df.reset_index(drop=True, inplace=True)
                 yield df.x, last_time, group
@@ -45,13 +45,29 @@ def make_features(df_x, blocks=conf.BLOCKS):
     size, res = divmod(len(df_x), blocks)
     assert df_x.shape == (TEST_SIZE,), "Неверный размер даных"
     assert not res, "Неверное количество блоков"
-    features = ["mean", "std", "skew",  "max", "min"]
-    df_x = df_x.groupby(lambda x: x // size).agg(features).stack()
-    df_x.index = df_x.index.map(lambda x: f"{x[1]}_{x[0]}")
-    return df_x
+    rez = pd.Series()
+    rez["mean"] = df_x.mean()
+    rez["std"] = df_x.std()
+    # rez["skew"] = df_x.skew()
+    # rez["max"] = df_x.max()
+    # rez["min"] = df_x.min()
+    rez["kurt"] = df_x.kurt()
+    mean_abs = (df_x - rez["mean"]).abs()
+    rez["mean_abs_min"] = mean_abs.min()
+    rez["mean_abs_med"] = mean_abs.median()
+    # rez["mean_abs_max"] = mean_abs.max()
+    roll_std = df_x.rolling(375).std().dropna()
+    rez["std_roll_min_375"] = roll_std.min()
+    rez["std_roll_med_375"] = roll_std.median()
+    # rez["std_roll_max_375"] = roll_std.max()
+    rez["std_roll_cov"] = roll_std.clip(roll_std.quantile(0.1), roll_std.quantile(0.9)).reset_index().cov().iloc[0, 1] / 100000
+    half = len(roll_std) // 2
+    rez["std_roll_half_pct"] = roll_std.iloc[-half:].median() / roll_std.iloc[:half].median()
+    # rez["std_roll_half_delta"] = roll_std.iloc[-half:].median() - roll_std.iloc[:half].median()
+    return rez
 
 
-def make_train_set(rebuild=False, passes=30):
+def make_train_set(rebuild=conf.REBUILD, passes=conf.PASSES):
     """Данные для обучения."""
     path = pathlib.Path(conf.DATA_PROCESSED + f"train_passes_{passes}.pickle")
     if not rebuild and path.exists():
@@ -67,7 +83,7 @@ def make_train_set(rebuild=False, passes=30):
     return data
 
 
-def make_test_set(rebuild=False):
+def make_test_set(rebuild=conf.REBUILD):
     """Формирование признаков по аналогии с тренировочным набором."""
     path = pathlib.Path(conf.DATA_PROCESSED + f"test.pickle")
     if not rebuild and path.exists():
@@ -90,4 +106,4 @@ def make_test_set(rebuild=False):
 
 
 if __name__ == '__main__':
-    print(make_test_set())
+    print(make_features(next(yield_train_blocks(1))[0]))

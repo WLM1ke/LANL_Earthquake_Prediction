@@ -10,7 +10,12 @@ DATA_SUB = "../raw/sample_submission.csv"
 DATA_TEST = "../raw/test/{}.csv"
 DATA_PROCESSED = "../processed/"
 
-# Параметры признаков
-BLOCKS = 30
-LEARNING_RATE = 0.03
-DEPTH = 10
+# Параметры генерации признаков
+REBUILD = True
+
+PASSES = 1
+
+
+# Параметры Catboost
+LEARNING_RATE = 0.1
+DEPTH = 6
