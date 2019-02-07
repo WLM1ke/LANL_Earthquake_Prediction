@@ -7,6 +7,8 @@ from sklearn import model_selection
 import catboost
 import pandas as pd
 import numpy as np
+import boruta
+import lightgbm
 
 from src import conf
 from src import processing
@@ -16,6 +18,17 @@ SEED = 284702
 N_SPLITS = 5
 FOLDS = model_selection.KFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
 
+CLF_PARAMS = dict(
+    loss_function="MAE",
+    random_state=SEED,
+    depth=conf.DEPTH,
+    od_type="Iter",
+    od_wait=100,
+    verbose=100,
+    learning_rate=conf.LEARNING_RATE,
+    iterations=10000,
+    allow_writing_files=False
+)
 
 def train_catboost(passes, folds=FOLDS):
     """Обучение catboost."""
@@ -26,17 +39,6 @@ def train_catboost(passes, folds=FOLDS):
     oof_y = pd.Series(0, index=df.index, name="oof_y")
     trees = []
     scores = []
-    clf_params = dict(
-        loss_function="MAE",
-        random_state=SEED,
-        depth=conf.DEPTH,
-        od_type="Iter",
-        od_wait=100,
-        verbose=100,
-        learning_rate=conf.LEARNING_RATE,
-        iterations=10000,
-        allow_writing_files=False
-    )
 
     for train_ind, valid_ind in folds.split(x, y, groups=group):
         train_x = x.iloc[train_ind]
@@ -45,7 +47,7 @@ def train_catboost(passes, folds=FOLDS):
         valid_x = x.iloc[valid_ind]
         valid_y = y.iloc[valid_ind]
 
-        clf = catboost.CatBoostRegressor(**clf_params)
+        clf = catboost.CatBoostRegressor(**CLF_PARAMS)
 
         fit_params = dict(
             X=train_x,
@@ -71,8 +73,8 @@ def train_catboost(passes, folds=FOLDS):
     )
 
     test_x = processing.make_test_set()
-    clf_params["iterations"] = sorted(trees)[N_SPLITS // 2 + 1]
-    clf = catboost.CatBoostRegressor(**clf_params)
+    CLF_PARAMS["iterations"] = sorted(trees)[N_SPLITS // 2 + 1]
+    clf = catboost.CatBoostRegressor(**CLF_PARAMS)
     fit_params = dict(
         X=x,
         y=y,
@@ -95,5 +97,22 @@ def train_catboost(passes, folds=FOLDS):
         logging.info(x.columns[i].ljust(20) + x.columns[j].ljust(20) + str(value))
 
 
+def feat_sel():
+    """Выбор признаков."""
+    df = processing.make_train_set()
+    y = df.y
+    x = df.drop(["y", "group"], axis=1)
+    clf = lightgbm.LGBMRegressor(boosting_type="rf",
+                                 bagging_freq=1,
+                                 bagging_fraction=0.632,
+                                 feature_fraction=0.632)
+    feat_selector = boruta.BorutaPy(clf, n_estimators=500, verbose=2)
+    feat_selector.fit(x.values, y.values)
+    print(x.columns[feat_selector.support_weak_])
+    print(x.columns[feat_selector.support_])
+    print(pd.Series(feat_selector.ranking_, index=x.columns).sort_values())
+
+
 if __name__ == '__main__':
     train_catboost(conf.PASSES)
+    # feat_sel()

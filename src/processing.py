@@ -40,11 +40,8 @@ def yield_train_blocks(passes, chunk_size=TEST_SIZE):
                 yield df.x, last_time, group
 
 
-def make_features(df_x, blocks=conf.BLOCKS):
+def make_features(df_x):
     """Разбивает данные на блоки и создает описательную статистику для них."""
-    size, res = divmod(len(df_x), blocks)
-    assert df_x.shape == (TEST_SIZE,), "Неверный размер даных"
-    assert not res, "Неверное количество блоков"
     rez = pd.Series()
     rez["mean"] = df_x.mean()
     rez["std"] = df_x.std()
@@ -60,7 +57,7 @@ def make_features(df_x, blocks=conf.BLOCKS):
     rez["std_roll_min_375"] = roll_std.min()
     rez["std_roll_med_375"] = roll_std.median()
     # rez["std_roll_max_375"] = roll_std.max()
-    rez["std_roll_cov"] = roll_std.clip(roll_std.quantile(0.1), roll_std.quantile(0.9)).reset_index().cov().iloc[0, 1] / 100000
+    # rez["std_roll_cov"] = roll_std.clip(roll_std.quantile(0.1), roll_std.quantile(0.9)).reset_index().cov().iloc[0, 1] / 100000
     half = len(roll_std) // 2
     rez["std_roll_half_pct"] = roll_std.iloc[-half:].median() / roll_std.iloc[:half].median()
     # rez["std_roll_half_delta"] = roll_std.iloc[-half:].median() - roll_std.iloc[:half].median()
