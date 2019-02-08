@@ -15,8 +15,13 @@ from src import processing
 
 # Настройки валидации
 SEED = 284702
-N_SPLITS = 5
+N_SPLITS = 11
 FOLDS = model_selection.KFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
+CHOOSE = [
+    'mean', 'kurt', 'mean_abs_min', 'mean_abs_med', 'std_roll_min_375',
+    'std_roll_med_375', 'std_roll_half_pct', 'hurst', 'pacf_2', 'pacf_4',
+    'pacf_5', 'pacf_6', 'pacf_7', 'pacf_10', 'pacf_11', 'pacf_12',
+    'pacf_15', 'pacf_16']
 
 CLF_PARAMS = dict(
     loss_function="MAE",
@@ -30,22 +35,27 @@ CLF_PARAMS = dict(
     allow_writing_files=False
 )
 
-def train_catboost(passes, folds=FOLDS):
+
+def train_catboost(rebuild=conf.REBUILD, passes=conf.PASSES):
     """Обучение catboost."""
-    df = processing.make_train_set(passes=passes)
-    y = df.y
-    group = df.group
-    x = df.drop(["y", "group"], axis=1)
-    oof_y = pd.Series(0, index=df.index, name="oof_y")
+    x, y, group1, group2 = processing.train_set(rebuild=rebuild, passes=passes)
+    x = x[CHOOSE]
+    oof_y = pd.Series(0, index=x.index, name="oof_y")
     trees = []
     scores = []
 
-    for train_ind, valid_ind in folds.split(x, y, groups=group):
-        train_x = x.iloc[train_ind]
-        train_y = y.iloc[train_ind]
+    groups = group1.unique()
 
-        valid_x = x.iloc[valid_ind]
-        valid_y = y.iloc[valid_ind]
+    for _, valid_group_index in FOLDS.split(groups):
+        valid_groups = groups[valid_group_index]
+        valid_mask = group1.isin(valid_groups) | group2.isin(valid_groups)
+        train_mask = ~valid_mask
+
+        train_x = x.loc[train_mask]
+        train_y = y.loc[train_mask]
+
+        valid_x = x.loc[valid_mask]
+        valid_y = y.loc[valid_mask]
 
         clf = catboost.CatBoostRegressor(**CLF_PARAMS)
 
@@ -59,7 +69,7 @@ def train_catboost(passes, folds=FOLDS):
         clf.fit(**fit_params)
         trees.append(clf.tree_count_)
         scores.append(clf.best_score_['validation_0']['MAE'])
-        oof_y.iloc[valid_ind] = clf.predict(valid_x)
+        oof_y.loc[valid_mask] = clf.predict(valid_x)
 
     logging.info(f"Количество деревьев: {trees}")
     logging.info(f"Среднее количество деревьев: {np.mean(trees):.0f} +/- {np.std(trees):.0f}")
@@ -72,7 +82,7 @@ def train_catboost(passes, folds=FOLDS):
         conf.DATA_PROCESSED + "oof.pickle"
     )
 
-    test_x = processing.make_test_set()
+    test_x = processing.test_set(rebuild=rebuild)[CHOOSE]
     CLF_PARAMS["iterations"] = sorted(trees)[N_SPLITS // 2 + 1]
     clf = catboost.CatBoostRegressor(**CLF_PARAMS)
     fit_params = dict(
@@ -97,9 +107,9 @@ def train_catboost(passes, folds=FOLDS):
         logging.info(x.columns[i].ljust(20) + x.columns[j].ljust(20) + str(value))
 
 
-def feat_sel():
+def feat_sel(rebuild=conf.REBUILD, passes=conf.PASSES):
     """Выбор признаков."""
-    df = processing.make_train_set()
+    df = processing.train_set(rebuild=rebuild, passes=passes)
     y = df.y
     x = df.drop(["y", "group"], axis=1)
     clf = lightgbm.LGBMRegressor(boosting_type="rf",
@@ -114,5 +124,5 @@ def feat_sel():
 
 
 if __name__ == '__main__':
-    train_catboost(conf.PASSES)
+    train_catboost()
     # feat_sel()
