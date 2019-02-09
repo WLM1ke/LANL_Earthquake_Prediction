@@ -4,7 +4,6 @@ import pathlib
 import pandas as pd
 import tqdm
 import nolds
-from statsmodels.tsa import stattools
 
 from src import conf
 
@@ -50,31 +49,28 @@ def make_features(df_x):
     """Разбивает данные на блоки и создает описательную статистику для них."""
     feat = dict()
     feat["mean"] = df_x.mean()
-    feat["std"] = df_x.std()
-    feat["skew"] = df_x.skew()
-    feat["max"] = df_x.max()
-    feat["min"] = df_x.min()
-    feat["kurt"] = df_x.kurt()
+    # feat["std"] = df_x.std()
+    # feat["skew"] = df_x.skew()
+    # feat["kurt"] = df_x.kurt()
+
+    std = df_x.std()
+    mean = feat["mean"]
+    feat[f"count_std_5"] = (((df_x - mean) / std).abs() > 5).sum()
+    feat[f"count_std5_1"] = (((df_x - 4.5) / 5).abs() > 1).sum()
 
     mean_abs = (df_x - feat["mean"]).abs()
     feat["mean_abs_min"] = mean_abs.min()
     feat["mean_abs_med"] = mean_abs.median()
-    feat["mean_abs_max"] = mean_abs.max()
 
     roll_std = df_x.rolling(375).std().dropna()
     feat["std_roll_min_375"] = roll_std.min()
     feat["std_roll_med_375"] = roll_std.median()
-    feat["std_roll_max_375"] = roll_std.max()
 
-    feat["std_roll_cov"] = roll_std.clip(
-        roll_std.quantile(0.1), roll_std.quantile(0.9)).reset_index().cov().iloc[0, 1] / 100000
     half = len(roll_std) // 2
-    feat["std_roll_half_pct"] = roll_std.iloc[-half:].median() / roll_std.iloc[:half].median()
-    feat["std_roll_half_delta"] = roll_std.iloc[-half:].median() - roll_std.iloc[:half].median()
+    feat["std_roll_half1"] = roll_std.iloc[:half].median()
+    feat["std_roll_half2"] = roll_std.iloc[-half:].median()
 
     feat["hurst"] = nolds.hurst_rs(df_x.values)
-    for num, value in enumerate(stattools.pacf(df_x.values, nlags=16)[1:], 1):
-        feat[f"pacf_{num}"] = value
 
     return feat
 

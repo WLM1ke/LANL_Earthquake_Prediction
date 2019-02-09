@@ -15,20 +15,18 @@ from src import processing
 
 # Настройки валидации
 SEED = 284702
-N_SPLITS = 11
+N_SPLITS = 7
 FOLDS = model_selection.KFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
-CHOOSE = [
-    'mean', 'kurt', 'mean_abs_min', 'mean_abs_med', 'std_roll_min_375',
-    'std_roll_med_375', 'std_roll_half_pct', 'hurst', 'pacf_2', 'pacf_4',
-    'pacf_5', 'pacf_6', 'pacf_7', 'pacf_10', 'pacf_11', 'pacf_12',
-    'pacf_15', 'pacf_16']
+DROP = [
+
+]
 
 CLF_PARAMS = dict(
     loss_function="MAE",
     random_state=SEED,
     depth=conf.DEPTH,
     od_type="Iter",
-    od_wait=100,
+    od_wait=300,
     verbose=100,
     learning_rate=conf.LEARNING_RATE,
     iterations=10000,
@@ -39,7 +37,7 @@ CLF_PARAMS = dict(
 def train_catboost(rebuild=conf.REBUILD, passes=conf.PASSES):
     """Обучение catboost."""
     x, y, group1, group2 = processing.train_set(rebuild=rebuild, passes=passes)
-    x = x[CHOOSE]
+    x = x.drop(DROP, axis=1)
     oof_y = pd.Series(0, index=x.index, name="oof_y")
     trees = []
     scores = []
@@ -82,7 +80,7 @@ def train_catboost(rebuild=conf.REBUILD, passes=conf.PASSES):
         conf.DATA_PROCESSED + "oof.pickle"
     )
 
-    test_x = processing.test_set(rebuild=rebuild)[CHOOSE]
+    test_x = processing.test_set(rebuild=rebuild)[x.columns]
     CLF_PARAMS["iterations"] = sorted(trees)[N_SPLITS // 2 + 1]
     clf = catboost.CatBoostRegressor(**CLF_PARAMS)
     fit_params = dict(
@@ -109,9 +107,8 @@ def train_catboost(rebuild=conf.REBUILD, passes=conf.PASSES):
 
 def feat_sel(rebuild=conf.REBUILD, passes=conf.PASSES):
     """Выбор признаков."""
-    df = processing.train_set(rebuild=rebuild, passes=passes)
-    y = df.y
-    x = df.drop(["y", "group"], axis=1)
+    x, y, _, _ = processing.train_set(rebuild=rebuild, passes=passes)
+    x = x.drop(DROP, axis=1)
     clf = lightgbm.LGBMRegressor(boosting_type="rf",
                                  bagging_freq=1,
                                  bagging_fraction=0.632,
