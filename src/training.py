@@ -38,6 +38,9 @@ def train_catboost(rebuild=conf.REBUILD, passes=conf.PASSES):
     """Обучение catboost."""
     x, y, group1, group2 = processing.train_set(rebuild=rebuild, passes=passes)
     x = x.drop(DROP, axis=1)
+    mask_high = y < conf.CROP_Y
+    x, y, group1, group2 = x[mask_high], y[mask_high], group1[mask_high], group2[mask_high]
+
     oof_y = pd.Series(0, index=x.index, name="oof_y")
     trees = []
     scores = []

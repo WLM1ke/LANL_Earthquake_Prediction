@@ -13,6 +13,7 @@ DATA_PROCESSED = "../processed/"
 # Параметры генерации признаков
 REBUILD = False
 PASSES = 1  # 40
+CROP_Y = 20
 
 # Параметры Catboost
 LEARNING_RATE = 0.1
