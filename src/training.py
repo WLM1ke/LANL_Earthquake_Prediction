@@ -18,7 +18,14 @@ SEED = 284702
 N_SPLITS = 7
 FOLDS = model_selection.KFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
 DROP = [
-
+    "welch_0",
+    "welch_39", "welch_38", "welch_37", "welch_36",
+    "welch_35", "welch_34", "welch_33", "welch_32", "welch_31",
+    "welch_6", "welch_16", "welch_5", "welch_22", "welch_23",
+    "welch_10", "welch_13", "welch_20", "welch_12",  #
+    "welch_11", "welch_15", "welch_24", "welch_4", "welch_25",
+    "welch_17", "welch_1", "welch_8", "welch_14", "welch_9",
+    "welch_21", "welch_18", "welch_7", "welch_19", "welch_27"
 ]
 
 CLF_PARAMS = dict(
@@ -124,5 +131,5 @@ def feat_sel(rebuild=conf.REBUILD, passes=conf.PASSES):
 
 
 if __name__ == '__main__':
-    train_catboost()
-    # feat_sel()
+    # train_catboost()
+    feat_sel()

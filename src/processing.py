@@ -4,6 +4,7 @@ import pathlib
 import pandas as pd
 import tqdm
 import nolds
+from scipy import signal
 
 from src import conf
 
@@ -71,6 +72,10 @@ def make_features(df_x):
     feat["std_roll_half2"] = roll_std.iloc[-half:].median()
 
     feat["hurst"] = nolds.hurst_rs(df_x.values)
+
+    # New
+    for num, value in enumerate(signal.welch(df_x)[1][:40]):
+        feat[f"welch_{num}"] = value
 
     return feat
 
