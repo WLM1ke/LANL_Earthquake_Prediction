@@ -23,8 +23,6 @@ DROP = [
     "welch_11", "welch_15",  #
     "welch_27", "welch_16",
     "welch_5", #
-    "welch_23", "welch_17",
-    "welch_25", "welch_12",
 ]
 
 CLF_PARAMS = dict(
