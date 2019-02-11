@@ -71,12 +71,17 @@ def make_features(df_x):
     feat["std_roll_half1"] = roll_std.iloc[:half].median()
     feat["std_roll_half2"] = roll_std.iloc[-half:].median()
 
-    feat["hurst"] = nolds.hurst_rs(df_x.values)
+    # feat["hurst"] = nolds.hurst_rs(df_x.values)
 
-    welch = signal.welch(df_x, nperseg=512, nfft=512)[1]
-    # New - попробовать комулятивную сумму и ее просентили - по величине и по позиции, группировка с усреднением
-    for num, value in enumerate(signal.welch(df_x)[1]):
-        feat[f"welch_{num}"] = value
+    # Какая-то полная хрень - хотелось бы более осмысленный выбор
+    welch = signal.welch(df_x)[1]
+
+    for num in [2, 3, 19, 25, 28, 29, 30, 32]:
+        feat[f"welch_{num}"] = welch[num]
+
+    welch = welch / welch.sum()
+    for num in [3, 6, 8, 15, 18, 24]:
+        feat[f"welch_share_{num}"] = welch[num]
 
     return feat
 

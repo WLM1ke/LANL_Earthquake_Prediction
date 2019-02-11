@@ -18,36 +18,6 @@ SEED = 284702
 N_SPLITS = 7
 FOLDS = model_selection.KFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
 DROP = [
-    "welch_6", "welch_15",
-    "welch_86", "welch_16",
-    "welch_75", "welch_0", "welch_97", "welch_73",
-    "welch_13", "welch_62", "welch_108", "welch_94", "welch_107", "welch_54",
-    "welch_63", "welch_81", "welch_91", "welch_96", "welch_48", "welch_38", "welch_51", "welch_43",
-    "welch_122", "welch_116", "welch_17", "welch_12", "welch_112", "welch_23", "welch_114", "welch_84", "welch_8", "welch_93",
-    "welch_66", "welch_11", "welch_77", "welch_10", "welch_40", "welch_34", "welch_92", "welch_71", "welch_80", "welch_99", "welch_106",
-    "welch_55", "welch_87", "welch_113", "welch_44", "welch_59", "welch_18", "welch_88",
-    "welch_5", "welch_44", "welch_22", "welch_57", "welch_59", "welch_20", "welch_70",
-    "welch_128", "welch_56", "welch_72", "welch_125", "welch_76", "welch_69", "welch_53", "welch_49",
-    "welch_105", "welch_53", "welch_52",  "welch_35", "welch_9",  "welch_85", "welch_41", "welch_119",
-    "welch_21", "welch_61", "welch_127", "welch_67", "welch_102", "welch_37", "welch_78", "welch_90", "welch_124",
-    "welch_82", "welch_36", "welch_115", "welch_111", "welch_7", "welch_21", "welch_50", "welch_110", "welch_117",
-    "welch_47", "welch_121", "welch_65", "welch_45", "welch_46", "welch_123", "welch_32", "welch_126", "welch_39", "welch_1",
-    "welch_33", "welch_45", "welch_25", "welch_31", "welch_100", "welch_24", "welch_1", "welch_121", "welch_26", "welch_46",
-    "welch_74", "welch_79", "welch_60", "welch_58",
-    "welch_64", "welch_74", "welch_83", "welch_58", "welch_118", "welch_120", "welch_27", "welch_104",
-    "welch_68",
-    "welch_19",
-    "welch_89", "welch_42",
-    "welch_95", "welch_101",
-    "welch_98", "welch_109",
-    "welch_103",
-    "welch_4",
-    "hurst",
-    "welch_29",
-    "count_std_5",
-    "mean_abs_min",
-    "std_roll_min_375",
-
 ]
 
 CLF_PARAMS = dict(
