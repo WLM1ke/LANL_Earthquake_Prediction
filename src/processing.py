@@ -73,8 +73,9 @@ def make_features(df_x):
 
     feat["hurst"] = nolds.hurst_rs(df_x.values)
 
+    welch = signal.welch(df_x, nperseg=512, nfft=512)[1]
     # New - попробовать комулятивную сумму и ее просентили - по величине и по позиции, группировка с усреднением
-    for num, value in enumerate(signal.welch(df_x)[1][2:31]):
+    for num, value in enumerate(signal.welch(df_x)[1]):
         feat[f"welch_{num}"] = value
 
     return feat
