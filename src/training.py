@@ -18,36 +18,6 @@ SEED = 284702
 N_SPLITS = 7
 FOLDS = model_selection.KFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
 DROP = [
-    "welch_6", "welch_15",
-    "welch_86", "welch_16",
-    "welch_75", "welch_0", "welch_97", "welch_73",
-    "welch_13", "welch_62", "welch_108", "welch_94", "welch_107", "welch_54",
-    "welch_63", "welch_81", "welch_91", "welch_96", "welch_48", "welch_38", "welch_51", "welch_43",
-    "welch_122", "welch_116", "welch_17", "welch_12", "welch_112", "welch_23", "welch_114", "welch_84", "welch_8", "welch_93",
-    "welch_66", "welch_11", "welch_77", "welch_10", "welch_40", "welch_34", "welch_92", "welch_71", "welch_80", "welch_99", "welch_106",
-    "welch_55", "welch_87", "welch_113", "welch_44", "welch_59", "welch_18", "welch_88",
-    "welch_5", "welch_44", "welch_22", "welch_57", "welch_59", "welch_20", "welch_70",
-    "welch_128", "welch_56", "welch_72", "welch_125", "welch_76", "welch_69", "welch_53", "welch_49",
-    "welch_105", "welch_53", "welch_52",  "welch_35", "welch_9",  "welch_85", "welch_41", "welch_119",
-    "welch_21", "welch_61", "welch_127", "welch_67", "welch_102", "welch_37", "welch_78", "welch_90", "welch_124",
-    "welch_82", "welch_36", "welch_115", "welch_111", "welch_7", "welch_21", "welch_50", "welch_110", "welch_117",
-    "welch_47", "welch_121", "welch_65", "welch_45", "welch_46", "welch_123", "welch_32", "welch_126", "welch_39", "welch_1",
-    "welch_33", "welch_45", "welch_25", "welch_31", "welch_100", "welch_24", "welch_1", "welch_121", "welch_26", "welch_46",
-    "welch_74", "welch_79", "welch_60", "welch_58",
-    "welch_64", "welch_74", "welch_83", "welch_58", "welch_118", "welch_120", "welch_27", "welch_104",
-    "welch_68",
-    "welch_19",
-    "welch_89", "welch_42",
-    "welch_95", "welch_101",
-    "welch_98", "welch_109",
-    "welch_103",
-    "welch_4",
-    "hurst",
-    "welch_29",
-    "count_std_5",
-    "mean_abs_min",
-    "std_roll_min_375",
-
 ]
 
 CLF_PARAMS = dict(
@@ -67,8 +37,6 @@ def train_catboost(rebuild=conf.REBUILD, passes=conf.PASSES):
     """Обучение catboost."""
     x, y, group1, group2 = processing.train_set(rebuild=rebuild, passes=passes)
     x = x.drop(DROP, axis=1)
-    mask_high = y < conf.CROP_Y
-    x, y, group1, group2 = x[mask_high], y[mask_high], group1[mask_high], group2[mask_high]
 
     oof_y = pd.Series(0, index=x.index, name="oof_y")
     trees = []
@@ -81,31 +49,64 @@ def train_catboost(rebuild=conf.REBUILD, passes=conf.PASSES):
         valid_mask = group1.isin(valid_groups) | group2.isin(valid_groups)
         train_mask = ~valid_mask
 
-        train_x = x.loc[train_mask]
-        train_y = y.loc[train_mask]
+        x_train = x.loc[train_mask]
+        y_train = y.loc[train_mask]
 
-        valid_x = x.loc[valid_mask]
-        valid_y = y.loc[valid_mask]
+        x_valid = x.loc[valid_mask]
+        y_valid = y.loc[valid_mask]
+
+        weight_train = None
+        weight_valid = None
+
+        if conf.WEIGHTED:
+            max_group = len(conf.GROUP_WEIGHTS) - 1
+
+            group_id_train = y_train.astype('int')
+            group_id_train[group_id_train > max_group] = max_group
+            weight_train = group_id_train.map(pd.Series(conf.GROUP_WEIGHTS) / group_id_train.value_counts())
+
+            group_id_valid = y_valid.astype('int')
+            group_id_valid[group_id_valid > max_group] = max_group
+            weight_valid = group_id_valid.map(pd.Series(conf.GROUP_WEIGHTS) / group_id_valid.value_counts())
+
+        train = catboost.Pool(
+            data=x_train,
+            label=y_train,
+            cat_features=None,
+            weight=weight_train
+
+        )
+
+        valid = catboost.Pool(
+            data=x_valid,
+            label=y_valid,
+            cat_features=None,
+            weight=weight_valid
+        )
 
         clf = catboost.CatBoostRegressor(**CLF_PARAMS)
 
         fit_params = dict(
-            X=train_x,
-            y=train_y,
-            eval_set=(valid_x, valid_y),
-            cat_features=[]
+            X=train,
+            eval_set=[valid],
         )
 
         clf.fit(**fit_params)
         trees.append(clf.tree_count_)
         scores.append(clf.best_score_['validation_0']['MAE'])
-        oof_y.loc[valid_mask] = clf.predict(valid_x)
+        oof_y.loc[valid_mask] = clf.predict(valid)
 
     logging.info(f"Количество деревьев: {trees}")
     logging.info(f"Среднее количество деревьев: {np.mean(trees):.0f} +/- {np.std(trees):.0f}")
     logging.info(f"MAE на кроссвалидации: " + str(np.round(scores, 5)))
     logging.info(f"MAE среднее: {np.mean(scores):0.3f} +/- {np.std(scores):0.3f}")
-    oof_mae = metrics.mean_absolute_error(y, oof_y)
+
+    max_group = len(conf.GROUP_WEIGHTS) - 1
+    group_id = y.astype('int')
+    group_id[group_id > max_group] = max_group
+    weight = group_id.map(pd.Series(conf.GROUP_WEIGHTS) / group_id.value_counts())
+
+    oof_mae = metrics.mean_absolute_error(y, oof_y, weight)
     logging.info(f"OOF MAE: {oof_mae:0.3f}")
 
     pd.concat([y, oof_y], axis=1).to_pickle(

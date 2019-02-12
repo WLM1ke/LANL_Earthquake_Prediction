@@ -13,7 +13,9 @@ DATA_PROCESSED = "../processed/"
 # Параметры генерации признаков
 REBUILD = False
 PASSES = 1  # 40
-CROP_Y = 20
+WEIGHTED = True
+GROUP_WEIGHTS = list([0.146, 0.134, 0.146, 0.134, 0.131, 0.029])
+GROUP_WEIGHTS.append(1 - sum(GROUP_WEIGHTS))
 
 # Параметры Catboost
 LEARNING_RATE = 0.1

@@ -47,36 +47,32 @@ def yield_train_blocks(passes):
 
 
 def make_features(df_x):
-    """Разбивает данные на блоки и создает описательную статистику для них."""
+    """Данные разбиваются на блоки и создают признаки для них."""
     feat = dict()
     feat["mean"] = df_x.mean()
     # feat["std"] = df_x.std()
     # feat["skew"] = df_x.skew()
     # feat["kurt"] = df_x.kurt()
 
-    std = df_x.std()
-    mean = feat["mean"]
-    feat[f"count_std_5"] = (((df_x - mean) / std).abs() > 5).sum()
     feat[f"count_std5_1"] = (((df_x - 4.5) / 5).abs() > 1).sum()
 
     mean_abs = (df_x - feat["mean"]).abs()
-    feat["mean_abs_min"] = mean_abs.min()
     feat["mean_abs_med"] = mean_abs.median()
 
     roll_std = df_x.rolling(375).std().dropna()
-    feat["std_roll_min_375"] = roll_std.min()
     feat["std_roll_med_375"] = roll_std.median()
 
     half = len(roll_std) // 2
     feat["std_roll_half1"] = roll_std.iloc[:half].median()
     feat["std_roll_half2"] = roll_std.iloc[-half:].median()
 
-    feat["hurst"] = nolds.hurst_rs(df_x.values)
+    # feat["hurst"] = nolds.hurst_rs(df_x.values)
 
-    welch = signal.welch(df_x, nperseg=512, nfft=512)[1]
-    # New - попробовать комулятивную сумму и ее просентили - по величине и по позиции, группировка с усреднением
-    for num, value in enumerate(signal.welch(df_x)[1]):
-        feat[f"welch_{num}"] = value
+    # Не нравится мне это, но дает очень похожий инкрементальный результат на паблике и кросс-валидации
+    # Возможный плюс, что welch с дефолтными настройками - попыки их подрихтовать не дают улучшений
+    welch = signal.welch(df_x)[1]
+    for num in [2, 3, 14, 28, 30]:
+        feat[f"welch_{num}"] = welch[num]
 
     return feat
 
