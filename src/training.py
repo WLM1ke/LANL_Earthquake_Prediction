@@ -18,6 +18,43 @@ SEED = 284702
 N_SPLITS = 7
 FOLDS = model_selection.KFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
 DROP = [
+    "mean", "abs_q01", "med", "count_big", "abs_min",
+    "abs_q01", "abs_min", "q05", "max_roll_mean_100", "MA_1000MA_std_mean",
+    "abs_q05", "q01", "sum", "std", "max_roll_std_100",
+    "max_roll_std_100", "Rstd_last_15000", "Rmin_last_15000", "Istd", "max_roll_std_1000",
+    "ave_roll_mean_1000", "max_roll_std_10", "q99", "ave_roll_mean_10", "Moving_average_700_mean",
+    "q99", "ave_roll_mean_100", "q999", "std_roll_std_100", "abs_q99",
+    "abs_q95", "min_roll_std_10", "MA_700MA_std_mean", "std_roll_std_1000", "abs_std",
+    "ave_roll_std_100", "mad", "std_roll_std_1000", "abs_std", "iqr",
+    "ave_roll_std_1000", "abs_max_roll_std_10", "q05_roll_mean_10", "MA_400MA_std_mean", "min",
+    "ave_roll_std_1000", "abs_max_roll_std_100", "av_change_rate_roll_mean_100", "q05_roll_mean_10", "av_change_rate_roll_mean_10",
+    "max_roll_mean_1000", "q001", "std_roll_std_10", "exp_Moving_average_300_mean", "Moving_average_3000_mean",
+    "q001", "min_roll_mean_10", "Imin", "mean_change_abs", "q95",
+    "MA_400MA_BB_low_mean", "av_change_rate_roll_std_1000", "abs_max_roll_std_1000", "max_last_10000", "q99_roll_std_10",
+    "MA_700MA_BB_low_mean", "Rmin", "abs_max_roll_mean_10", "kurt", "ave_roll_std_10",  #
+    "max_first_10000", "min_last_50000", "Moving_average_1500_mean", "max_last_50000", "std_roll_mean_10",
+    "max", "MA_700MA_BB_high_mean", "max_last_50000", "min_roll_mean_100", "q95_roll_std_100", #
+    "min_first_10000", "Imax", "abs_trend", "MA_400MA_BB_high_mean", "q99_roll_mean_10",
+    "Rmax", "av_change_rate_roll_std_100", "classic_sta_lta3_mean", "Hilbert_mean", "av_change_rate_roll_mean_1000", #
+    "Moving_average_6000_mean", "av_change_rate_roll_std_10", "exp_Moving_average_3000_mean", "avg_last_50000", "Rstd",
+    "max_roll_mean_10", "abs_max", "q01_roll_mean_10", "std_last_50000", "std_first_50000", #
+    "Rmin_last_5000", "std_roll_mean_1000", "min_last_10000", "Hann_window_mean", "std_roll_mean_100",
+    "av_change_abs_roll_std_10", "Rmean_last_5000", "mean_change_rate_last_10000", "av_change_abs_roll_std_1000", "min_last_10000",
+    "std_first_10000", "av_change_abs_roll_mean_1000", "Rmax_last_15000", "Rstd__last_5000", "trend",
+    "q95_roll_mean_10", "q99_roll_std_1000", "Rmax_last_5000", "Rmax_last_15000", "Rmean", #
+    "q99_roll_std_100", "q05_roll_mean_1000", "std_last_10000", "q01_roll_mean_100", "mean_change_rate",
+    "classic_sta_lta4_mean", "classic_sta_lta2_mean", "mean_change_rate_first_50000", "max_to_min", "q95_roll_std_10", #
+    "abs_max_roll_mean_100", "min_first_50000", "max_to_min_diff", "av_change_abs_roll_mean_10", "classic_sta_lta1_mean",
+    "min_first_50000", "q95_roll_mean_100", "skew", "min_roll_mean_1000", "classic_sta_lta1_mean", #
+    "count_std5_1", "Imean", "q95_roll_std_1000", "max_first_50000", "av_change_abs_roll_mean_100",
+    "q01_roll_std_10", "abs_mean", "exp_Moving_average_30000_mean", "avg_last_10000", "Imean",
+    "mean_change_rate_last_50000", "av_change_abs_roll_std_100", "q95_roll_mean_1000", "mean_change_rate_first_10000", "abs_max_roll_mean_1000",
+    "Rmean_last_15000", "mean_change_rate_last_50000", "av_change_abs_roll_std_100", "min_roll_std_1000", "min_roll_std_100", #
+    "q99_roll_mean_100", "std_roll_half2",
+    "q01_roll_std_100", "welch_14", #
+    "q05_roll_mean_100", "avg_first_10000", #
+    "avg_first_50000", "q01_roll_std_1000", #
+
 ]
 
 CLF_PARAMS = dict(
@@ -101,10 +138,12 @@ def train_catboost(rebuild=conf.REBUILD, passes=conf.PASSES):
     logging.info(f"MAE на кроссвалидации: " + str(np.round(scores, 5)))
     logging.info(f"MAE среднее: {np.mean(scores):0.3f} +/- {np.std(scores):0.3f}")
 
-    max_group = len(conf.GROUP_WEIGHTS) - 1
-    group_id = y.astype('int')
-    group_id[group_id > max_group] = max_group
-    weight = group_id.map(pd.Series(conf.GROUP_WEIGHTS) / group_id.value_counts())
+    weight = None
+    if conf.WEIGHTED:
+        max_group = len(conf.GROUP_WEIGHTS) - 1
+        group_id = y.astype('int')
+        group_id[group_id > max_group] = max_group
+        weight = group_id.map(pd.Series(conf.GROUP_WEIGHTS) / group_id.value_counts())
 
     oof_mae = metrics.mean_absolute_error(y, oof_y, weight)
     logging.info(f"OOF MAE: {oof_mae:0.3f}")
