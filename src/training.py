@@ -18,6 +18,7 @@ SEED = 284702
 N_SPLITS = 7
 FOLDS = model_selection.KFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
 DROP = [
+
 ]
 
 CLF_PARAMS = dict(

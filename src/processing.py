@@ -52,48 +52,9 @@ def yield_train_blocks(passes):
                 yield df.x, last_time, group1, group2
 
 
-
-
-def add_trend_feature(arr, abs_values=False):
-    idx = np.array(range(len(arr)))
-    if abs_values:
-        arr = np.abs(arr)
-    lr = LinearRegression()
-    lr.fit(idx.reshape(-1, 1), arr)
-    return lr.coef_[0]
-
-
-def classic_sta_lta(x, length_sta, length_lta):
-    sta = np.cumsum(x ** 2)
-    # Convert to float
-    sta = np.require(sta, dtype=np.float)
-    # Copy for LTA
-    lta = sta.copy()
-    # Compute the STA and the LTA
-    sta[length_sta:] = sta[length_sta:] - sta[:-length_sta]
-    sta /= length_sta
-    lta[length_lta:] = lta[length_lta:] - lta[:-length_lta]
-    lta /= length_lta
-    # Pad zeros
-    sta[:length_lta - 1] = 0
-    # Avoid division by zero by setting zero values to tiny float
-    dtiny = np.finfo(0.0).tiny
-    idx = lta < dtiny
-    lta[idx] = dtiny
-    return sta / lta
-
-
-
 def make_features(df_x):
     """Данные разбиваются на блоки и создают признаки для них."""
     feat = dict()
-    # feat["mean"] = df_x.mean()
-    # feat["std"] = df_x.std()
-    # feat["skew"] = df_x.skew()
-    # feat["kurt"] = df_x.kurt()
-
-    # feat[f"count_std5_1"] = (((df_x - 4.5) / 5).abs() > 1).sum()
-
     mean_abs = (df_x - df_x.mean()).abs()
     feat["mean_abs_med"] = mean_abs.median()
 
@@ -102,25 +63,26 @@ def make_features(df_x):
 
     half = len(roll_std) // 2
     feat["std_roll_half1"] = roll_std.iloc[:half].median()
-    # feat["std_roll_half2"] = roll_std.iloc[-half:].median()
+    feat["std_roll_half2"] = roll_std.iloc[-half:].median()
 
     # feat["hurst"] = nolds.hurst_rs(df_x.values)
 
     # Не нравится мне это, но дает очень похожий инкрементальный результат на паблике и кросс-валидации
     # Возможный плюс, что welch с дефолтными настройками - попыки их подрихтовать не дают улучшений
     welch = signal.welch(df_x)[1]
-    for num in [2, 3, 28, 30]:  # 14
+    for num in [2, 3, 28, 30]:   # Еще 14
         feat[f"welch_{num}"] = welch[num]
 
     # New
     feat["ave10"] = stats.trim_mean(df_x, 0.1)
 
-    feat["q05_roll_std_10"] = df_x.rolling(10).std().dropna().quantile(0.05)
-    feat["q05_roll_std_100"] = df_x.rolling(100).std().dropna().quantile(0.05)
+    feat["q05_roll_std_25"] = df_x.rolling(25).std().dropna().quantile(0.05)
+    # feat["q05_roll_std_125"] = df_x.rolling(125).std().dropna().quantile(0.05)
+    feat["q05_roll_std_375"] = df_x.rolling(375).std().dropna().quantile(0.05)
+    feat["q05_roll_std_1500"] = df_x.rolling(1500).std().dropna().quantile(0.05)
     feat["q05_roll_std_1000"] = df_x.rolling(1000).std().dropna().quantile(0.05)
-
-    feat["q01_roll_mean_1000"] = df_x.rolling(1000).mean().dropna().quantile(0.01)
-    feat["q99_roll_mean_1000"] = df_x.rolling(1000).mean().dropna().quantile(0.99)
+    feat["q01_roll_mean_1500"] = df_x.rolling(1500).mean().dropna().quantile(0.01)
+    feat["q99_roll_mean_1500"] = df_x.rolling(1500).mean().dropna().quantile(0.99)
 
     return feat
 
