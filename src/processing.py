@@ -65,24 +65,33 @@ def make_features(df_x):
     feat["std_roll_half1"] = roll_std.iloc[:half].median()
     feat["std_roll_half2"] = roll_std.iloc[-half:].median()
 
-    # feat["hurst"] = nolds.hurst_rs(df_x.values)
+    feat["hurst"] = nolds.hurst_rs(df_x.values)  #
 
     # Не нравится мне это, но дает очень похожий инкрементальный результат на паблике и кросс-валидации
     # Возможный плюс, что welch с дефолтными настройками - попыки их подрихтовать не дают улучшений
     welch = signal.welch(df_x)[1]
-    for num in [2, 3, 28, 30]:   # Еще 14
+    for num in [2, 3, 14, 28, 30]:   # Еще 14
         feat[f"welch_{num}"] = welch[num]
 
-    # New
     feat["ave10"] = stats.trim_mean(df_x, 0.1)
 
     feat["q05_roll_std_25"] = df_x.rolling(25).std().dropna().quantile(0.05)
-    # feat["q05_roll_std_125"] = df_x.rolling(125).std().dropna().quantile(0.05)
+    feat["q05_roll_std_125"] = df_x.rolling(125).std().dropna().quantile(0.05)  #
     feat["q05_roll_std_375"] = df_x.rolling(375).std().dropna().quantile(0.05)
     feat["q05_roll_std_1500"] = df_x.rolling(1500).std().dropna().quantile(0.05)
     feat["q05_roll_std_1000"] = df_x.rolling(1000).std().dropna().quantile(0.05)
     feat["q01_roll_mean_1500"] = df_x.rolling(1500).mean().dropna().quantile(0.01)
     feat["q99_roll_mean_1500"] = df_x.rolling(1500).mean().dropna().quantile(0.99)
+
+    # New
+    feat["norm_kurt"] = df_x.kurt() / df_x.std()
+
+    norm_welch = signal.welch((df_x / df_x.rolling(375).std()).dropna())[1]
+
+    feat["norm_welch_max"] = max(norm_welch)
+    for num in range(35):
+        feat[f"norm_welch_{num}"] = norm_welch[num]
+
 
     return feat
 

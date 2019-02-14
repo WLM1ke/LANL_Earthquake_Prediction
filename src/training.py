@@ -18,7 +18,11 @@ SEED = 284702
 N_SPLITS = 7
 FOLDS = model_selection.KFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
 DROP = [
-
+    "norm_welch_22", "norm_welch_10", "norm_welch_14", "norm_welch_29", "norm_welch_34",
+    "norm_welch_12", "norm_welch_15", "norm_welch_13", "norm_welch_20", "norm_welch_31",
+    "norm_welch_max", "norm_welch_0", "norm_welch_21",
+    "norm_welch_30", "norm_welch_11",
+    "hurst", "norm_kurt",  #
 ]
 
 CLF_PARAMS = dict(
