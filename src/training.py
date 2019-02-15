@@ -23,6 +23,7 @@ DROP = [
     "norm_welch_max", "norm_welch_0", "norm_welch_21",
     "norm_welch_30", "norm_welch_11",
     "hurst", "norm_kurt",  #
+    "norm_welch_25"
 ]
 
 CLF_PARAMS = dict(
