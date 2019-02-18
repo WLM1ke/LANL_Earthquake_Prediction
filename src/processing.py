@@ -6,11 +6,7 @@ import tqdm
 import nolds
 from scipy import signal
 from scipy import stats
-from scipy.signal import hilbert
-from scipy.signal import convolve
-from scipy.signal import hann
-import numpy as np
-from sklearn.linear_model import LinearRegression
+
 
 from src import conf
 
@@ -65,8 +61,6 @@ def make_features(df_x):
     feat["std_roll_half1"] = roll_std.iloc[:half].median()
     feat["std_roll_half2"] = roll_std.iloc[-half:].median()
 
-    feat["hurst"] = nolds.hurst_rs(df_x.values)  #
-
     # Не нравится мне это, но дает очень похожий инкрементальный результат на паблике и кросс-валидации
     # Возможный плюс, что welch с дефолтными настройками - попыки их подрихтовать не дают улучшений
     welch = signal.welch(df_x)[1]
@@ -84,14 +78,11 @@ def make_features(df_x):
     feat["q99_roll_mean_1500"] = df_x.rolling(1500).mean().dropna().quantile(0.99)
 
     # New
-    feat["norm_kurt"] = df_x.kurt() / df_x.std()
-
     norm_welch = signal.welch((df_x / df_x.rolling(375).std()).dropna())[1]
 
     feat["norm_welch_max"] = max(norm_welch)
-    for num in range(35):
+    for num in range(1, 34):
         feat[f"norm_welch_{num}"] = norm_welch[num]
-
 
     return feat
 

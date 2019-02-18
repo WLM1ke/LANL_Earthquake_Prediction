@@ -12,8 +12,8 @@ DATA_PROCESSED = "../processed/"
 
 # Параметры генерации признаков
 REBUILD = False
-PASSES = 1  # 40
-WEIGHTED = True
+PASSES = 10  # 40
+WEIGHTED = False
 GROUP_WEIGHTS = list([0.146, 0.134, 0.146, 0.134, 0.131, 0.029, 0.111, 0.029, 0.112, 0.021])
 GROUP_WEIGHTS.append(1 - sum(GROUP_WEIGHTS))
 
