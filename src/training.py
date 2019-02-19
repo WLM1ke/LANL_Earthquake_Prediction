@@ -25,7 +25,8 @@ DROP = [
     "norm_welch_25", "norm_welch_23",
     "norm_welch_9",
     "norm_welch_5",
-    "norm_welch_32"
+    "norm_welch_32",
+    "norm_welch_22"
 ]
 
 CLF_PARAMS = dict(
@@ -41,47 +42,24 @@ CLF_PARAMS = dict(
 )
 
 
-def train_catboost(rebuild=conf.REBUILD, passes=conf.PASSES):
-    """Обучение catboost."""
-    x, y, group1, group2 = processing.train_set(rebuild=rebuild, passes=passes)
+def catboost_cv():
+    """Кросс-валидация и выбор оптимального количества деревьев."""
+    x, y = processing.train_set()
     x = x.drop(DROP, axis=1)
-
     oof_y = pd.Series(0, index=x.index, name="oof_y")
     trees = []
     scores = []
+    for train_index, valid_index in FOLDS.split(x):
+        x_train = x.iloc[train_index]
+        y_train = y.iloc[train_index]
 
-    groups = group1.unique()
-
-    for _, valid_group_index in FOLDS.split(groups):
-        valid_groups = groups[valid_group_index]
-        valid_mask = group1.isin(valid_groups) | group2.isin(valid_groups)
-        train_mask = ~valid_mask
-
-        x_train = x.loc[train_mask]
-        y_train = y.loc[train_mask]
-
-        x_valid = x.loc[valid_mask]
-        y_valid = y.loc[valid_mask]
-
-        weight_train = None
-        weight_valid = None
-
-        if conf.WEIGHTED:
-            max_group = len(conf.GROUP_WEIGHTS) - 1
-
-            group_id_train = y_train.astype('int')
-            group_id_train[group_id_train > max_group] = max_group
-            weight_train = group_id_train.map(pd.Series(conf.GROUP_WEIGHTS) / group_id_train.value_counts())
-
-            group_id_valid = y_valid.astype('int')
-            group_id_valid[group_id_valid > max_group] = max_group
-            weight_valid = group_id_valid.map(pd.Series(conf.GROUP_WEIGHTS) / group_id_valid.value_counts())
+        x_valid = x.iloc[valid_index]
+        y_valid = y.iloc[valid_index]
 
         train = catboost.Pool(
             data=x_train,
             label=y_train,
             cat_features=None,
-            weight=weight_train
 
         )
 
@@ -89,7 +67,6 @@ def train_catboost(rebuild=conf.REBUILD, passes=conf.PASSES):
             data=x_valid,
             label=y_valid,
             cat_features=None,
-            weight=weight_valid
         )
 
         clf = catboost.CatBoostRegressor(**CLF_PARAMS)
@@ -102,42 +79,44 @@ def train_catboost(rebuild=conf.REBUILD, passes=conf.PASSES):
         clf.fit(**fit_params)
         trees.append(clf.tree_count_)
         scores.append(clf.best_score_['validation_0']['MAE'])
-        oof_y.loc[valid_mask] = clf.predict(valid)
+        oof_y.iloc[valid_index] = clf.predict(valid)
 
     logging.info(f"Количество деревьев: {trees}")
     logging.info(f"Среднее количество деревьев: {np.mean(trees):.0f} +/- {np.std(trees):.0f}")
     logging.info(f"MAE на кроссвалидации: " + str(np.round(scores, 5)))
     logging.info(f"MAE среднее: {np.mean(scores):0.3f} +/- {np.std(scores):0.3f}")
-
-    weight = None
-    if conf.WEIGHTED:
-        max_group = len(conf.GROUP_WEIGHTS) - 1
-        group_id = y.astype('int')
-        group_id[group_id > max_group] = max_group
-        weight = group_id.map(pd.Series(conf.GROUP_WEIGHTS) / group_id.value_counts())
-
-    oof_mae = metrics.mean_absolute_error(y, oof_y, weight)
+    oof_mae = metrics.mean_absolute_error(y, oof_y)
     logging.info(f"OOF MAE: {oof_mae:0.3f}")
-
     pd.concat([y, oof_y], axis=1).to_pickle(
         conf.DATA_PROCESSED + "oof.pickle"
     )
+    best_trees = sorted(trees)[N_SPLITS // 2 + 1]
+    return best_trees, oof_mae
 
-    test_x = processing.test_set(rebuild=rebuild)[x.columns]
-    CLF_PARAMS["iterations"] = sorted(trees)[N_SPLITS // 2 + 1]
+
+def catboost_predict():
+    """Прогноз для catboost."""
+    best_trees, oof_mae = catboost_cv()
+    train_x, train_y = processing.train_set()
+
+    test_x = processing.test_set()[train_x.columns]
+    CLF_PARAMS["iterations"] = best_trees
     clf = catboost.CatBoostRegressor(**CLF_PARAMS)
     fit_params = dict(
-        X=x,
-        y=y,
+        X=train_x,
+        y=train_y,
         cat_features=[]
     )
     clf.fit(**fit_params)
-    sub = pd.DataFrame(clf.predict(test_x), index=test_x.index, columns=["time_to_failure"])
-    sub.to_csv(conf.DATA_PROCESSED + f"sub_{time.strftime('%Y-%m-%d_%H-%M')}_passes-{passes}_mae-{oof_mae:0.3f}.csv")
+    sub = pd.DataFrame(
+        clf.predict(test_x),
+        index=test_x.index,
+        columns=["time_to_failure"])
+    sub.to_csv(conf.DATA_PROCESSED + f"sub_{time.strftime('%Y-%m-%d_%H-%M')}_mae-{oof_mae:0.3f}.csv")
 
     logging.info("Важность признаков:")
     for i, v in clf.get_feature_importance(prettified=True):
-        logging.info(i.ljust(20) + str(v))
+        logging.info(i.ljust(30) + str(v))
 
     pd.DataFrame(clf.get_feature_importance(prettified=True)).set_index(0).to_pickle(
         conf.DATA_PROCESSED + "importance.pickle"
@@ -145,12 +124,12 @@ def train_catboost(rebuild=conf.REBUILD, passes=conf.PASSES):
 
     logging.info("Попарная важность признаков:")
     for i, j, value in clf.get_feature_importance(fstr_type="Interaction", prettified=True)[:20]:
-        logging.info(x.columns[i].ljust(20) + x.columns[j].ljust(20) + str(value))
+        logging.info(train_x.columns[i].ljust(20) + train_x.columns[j].ljust(20) + str(value))
 
 
-def feat_sel(rebuild=conf.REBUILD, passes=conf.PASSES):
+def feat_sel():
     """Выбор признаков."""
-    x, y, _, _ = processing.train_set(rebuild=rebuild, passes=passes)
+    x, y = processing.train_set()
     x = x.drop(DROP, axis=1)
     clf = lightgbm.LGBMRegressor(boosting_type="rf",
                                  bagging_freq=1,
@@ -164,5 +143,5 @@ def feat_sel(rebuild=conf.REBUILD, passes=conf.PASSES):
 
 
 if __name__ == '__main__':
-    train_catboost()
+    catboost_predict()
     feat_sel()
