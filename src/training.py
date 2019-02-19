@@ -2,6 +2,8 @@
 import logging
 import time
 
+import hyperopt
+from hyperopt import hp
 from sklearn import metrics
 from sklearn import model_selection
 import catboost
@@ -15,7 +17,7 @@ from src import processing
 
 # Настройки валидации
 SEED = 284702
-N_SPLITS = 7
+N_SPLITS = 13
 FOLDS = model_selection.KFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
 DROP = [
     "norm_welch_22", "norm_welch_10", "norm_welch_14", "norm_welch_29",
@@ -29,20 +31,47 @@ DROP = [
     "norm_welch_22"
 ]
 
+MAX_SEARCHES = 100
+
 CLF_PARAMS = dict(
     loss_function="MAE",
     random_state=SEED,
-    depth=conf.DEPTH,
     od_type="Iter",
     od_wait=400,
     verbose=100,
-    learning_rate=conf.LEARNING_RATE,
-    iterations=10000,
-    allow_writing_files=False
+    allow_writing_files=False,
+    iterations=100000,
+    learning_rate=0.1,
+    depth=6,
+    l2_leaf_reg=3,
+    random_strength=1,
+    bagging_temperature=1
 )
 
 
-def catboost_cv():
+def log_space(space_name: str, interval):
+    """Создает логарифмическое вероятностное пространство"""
+    lower, upper = interval
+    lower, upper = np.log(lower), np.log(upper)
+    return hp.loguniform(space_name, lower, upper)
+
+
+CLF_SPACE = dict(
+    loss_function="MAE",
+    od_type="Iter",
+    od_wait=400,
+    verbose=False,
+    allow_writing_files=False,
+    iterations=100000,
+    learning_rate=log_space("learning_rate", [0.01, 0.3]),
+    depth=hp.choice("depth", list(range(1, 17))),
+    l2_leaf_reg=log_space("l2_leaf_reg", [0.03, 300]),
+    random_strength=log_space("rand_strength", [0.01, 100]),
+    bagging_temperature=log_space("bagging_temperature", [0.01, 100]),
+)
+
+
+def catboost_cv(params=None):
     """Кросс-валидация и выбор оптимального количества деревьев."""
     x, y = processing.train_set()
     x = x.drop(DROP, axis=1)
@@ -69,7 +98,8 @@ def catboost_cv():
             cat_features=None,
         )
 
-        clf = catboost.CatBoostRegressor(**CLF_PARAMS)
+        params = params or dict(CLF_PARAMS)
+        clf = catboost.CatBoostRegressor(**params)
 
         fit_params = dict(
             X=train,
@@ -127,6 +157,29 @@ def catboost_predict():
         logging.info(train_x.columns[i].ljust(20) + train_x.columns[j].ljust(20) + str(value))
 
 
+class HyperObjective:
+    """Обертка вокруг кросс-валидации для оптимизации гиперпараметров."""
+    def __init__(self):
+        self._best_mae = None
+
+    def __call__(self, params):
+        _, oof_mae = catboost_cv(params)
+        if self._best_mae is None or oof_mae < self._best_mae:
+            self._best_mae = oof_mae
+            logging.info(params)
+
+
+def optimize_hyper():
+    """Оптимизация гиперпараметров."""
+    objective = HyperObjective()
+    hyperopt.fmin(
+        objective,
+        space=CLF_SPACE,
+        algo=hyperopt.tpe.suggest,
+        max_evals=MAX_SEARCHES,
+    )
+
+
 def feat_sel():
     """Выбор признаков."""
     x, y = processing.train_set()
@@ -143,5 +196,6 @@ def feat_sel():
 
 
 if __name__ == '__main__':
-    catboost_predict()
-    feat_sel()
+    optimize_hyper()
+    # catboost_predict()
+    # feat_sel()
