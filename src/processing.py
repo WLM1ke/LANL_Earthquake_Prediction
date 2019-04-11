@@ -135,4 +135,4 @@ def test_set(rebuild):
 
 
 if __name__ == '__main__':
-    print(make_train_set(1))
+    print(len(make_train_set(1)))
