@@ -110,14 +110,6 @@ def test_set():
     return data
 
 
-def rescale_data(df):
-    """Центрирование и логорифмическое преобразование данных."""
-    df["x"] -= 4.5
-    df["x"] = np.sign(df["x"].values) * np.log1p(df["x"].abs())
-    return df
-
-
 if __name__ == '__main__':
     train_set()
     test_set()
-
