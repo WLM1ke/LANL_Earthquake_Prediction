@@ -1,4 +1,4 @@
-"""Обучение модели - catboost."""
+"""Стекинг результатов нескольких моделей."""
 import logging
 import time
 
@@ -20,7 +20,7 @@ CLF_PARAMS = dict(
     loss_function="MAE",
     eval_metric=None,
     random_state=SEED,
-    depth=10,
+    depth=6,
     od_type="Iter",
     od_wait=ITERATIONS // 10,
     verbose=ITERATIONS // 100,
@@ -29,15 +29,54 @@ CLF_PARAMS = dict(
     allow_writing_files=False,
 )
 
-DROP = [
-    "num_peaks_10", "percentile_roll_std_5", "afc_50"
+SOURCE = [
+    "sub_2019-04-29_10-00_1.938_1.974_cat.csv",
+    "sub_2019-04-29_10-57_1.940_1.974_lgbm.csv"
 ]
 
 
-def train_catboost():
-    """Обучение catboost."""
-    x_train, y_train = processing.train_set()
-    x_test = processing.test_set()
+DROP = [
+    "std", "max", "min", "oof_lgbm"
+]
+
+
+def load_oof():
+    """Загрузка OOF предсказаний в единый фрейм."""
+    data = []
+    for name in SOURCE:
+        df = pd.read_csv(conf.DATA_PROCESSED + "oof" + name[3:], header=0, index_col=0)
+        data.append(df)
+    data = pd.concat(data, axis=1)
+    return data
+
+
+def load_sub():
+    """Загрузка тестовых предсказаний в единый фрейм."""
+    data = []
+    for name in SOURCE:
+        df = pd.read_csv(conf.DATA_PROCESSED + name, header=0, index_col=0)
+        data.append(df)
+    data = pd.concat(data, axis=1)
+    return data
+
+
+def add_stacking_feat(df):
+    """Формирование дополнительных признаков для стекинга."""
+    n_base_feat = df.shape[1]
+    df["min"] = df.iloc[:, :n_base_feat].min(axis=1)
+    df["max"] = df.iloc[:, :n_base_feat].max(axis=1)
+    df["median"] = df.iloc[:, :n_base_feat].median(axis=1)
+    df["std"] = df.iloc[:, :n_base_feat].std(axis=1)
+
+    return df
+
+
+def stack_catboost():
+    """Стекинг catboost."""
+    x_train = add_stacking_feat(load_oof())
+    _, y_train = processing.train_set()
+    x_test = add_stacking_feat(load_sub())
+    x_test.columns = x_train.columns
 
     x_train.drop(DROP, axis=1, inplace=True)
     x_test.drop(DROP, axis=1, inplace=True)
@@ -48,7 +87,7 @@ def train_catboost():
             cat_features=None,
             weight=None
         )
-    y_oof = pd.Series(0, index=x_train.index, name="oof_cat")
+    y_oof = pd.Series(0, index=x_train.index, name="oof_y")
     y_pred = pd.Series(0, index=x_test.index, name="time_to_failure")
     trees = []
     scores = []
@@ -89,11 +128,11 @@ def train_catboost():
     stamp = (
         f"{time.strftime('%Y-%m-%d_%H-%M')}_"
         f"{np.mean(scores):0.3f}_"
-        f"{np.mean(scores) + np.std(scores) * 2 / len(scores) ** 0.5:0.3f}_cat")
+        f"{np.mean(scores) + np.std(scores) * 2 / len(scores) ** 0.5:0.3f}_stk")
     y_oof.to_csv(conf.DATA_PROCESSED + f"oof_{stamp}.csv", header=True)
     y_pred.to_csv(conf.DATA_PROCESSED + f"sub_{stamp}.csv", header=True)
     print(feat_importance.sort_values("value", ascending=False))
 
 
 if __name__ == '__main__':
-    train_catboost()
+    stack_catboost()

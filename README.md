@@ -16,7 +16,6 @@
 - Big_conv
     - ver1
 
-Добавть LightGBM - https://www.kaggle.com/wjholst/lanl-earthquake-eda-and-ensemble-prediction
 
 Нормированный dot.prod как мера похожести волн - для атокодировщика
 https://arxiv.org/pdf/1804.06812.pdf

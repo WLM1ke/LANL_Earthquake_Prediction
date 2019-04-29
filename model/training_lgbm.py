@@ -44,7 +44,7 @@ def train_light_gbm():
     x_train.drop(DROP, axis=1, inplace=True)
     x_test.drop(DROP, axis=1, inplace=True)
 
-    y_oof = pd.Series(0, index=x_train.index, name="oof_y")
+    y_oof = pd.Series(0, index=x_train.index, name="oof_lgbm")
     y_pred = pd.Series(0, index=x_test.index, name="time_to_failure")
     trees = []
     scores = []
