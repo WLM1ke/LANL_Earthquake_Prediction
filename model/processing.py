@@ -1,12 +1,18 @@
 """Загрузка и обработка данных."""
 import logging
 import pathlib
+from itertools import product
 
 import pandas as pd
-import numpy as np
 import tqdm
+import numpy as np
 from scipy import signal
 from scipy import stats
+from scipy.signal import convolve
+from scipy.signal import hilbert
+from scipy.signal.windows import hann
+from sklearn.linear_model import LinearRegression
+from tsfresh.feature_extraction import feature_calculators
 
 from model import conf
 
@@ -32,6 +38,13 @@ def load_data():
 def make_features(df_x):
     """Данные разбиваются на блоки и создают признаки для них."""
     feat = dict()
+
+    # Спектральная плотность (диапазоны выбраны в ручную) - нечто похожее используется при анализе голоса в NN
+    welch = signal.welch(df_x)[1]
+    for num in [2, 3, 28, 30]:
+        feat[f"welch_{num}"] = welch[num]
+
+    # Фичи на скользящих медианах - идейно похоже на Pooling только не max и average, а MedianPolling
     mean_abs = (df_x - df_x.mean()).abs()
     feat["mean_abs_med"] = mean_abs.median()
 
@@ -42,18 +55,20 @@ def make_features(df_x):
     feat["std_roll_half1"] = roll_std.iloc[:half].median()
     feat["std_roll_half2"] = roll_std.iloc[-half:].median()
 
-    welch = signal.welch(df_x)[1]
-    for num in [2, 3, 28, 30]:
-        feat[f"welch_{num}"] = welch[num]
-
-    feat["ave10"] = stats.trim_mean(df_x, 0.1)
-
+    # Фичи на скользящих глубоких квантилях - тоже нейкий QuantilePolling
     feat["q05_roll_std_25"] = df_x.rolling(25).std().dropna().quantile(0.05)
     feat["q05_roll_std_375"] = df_x.rolling(375).std().dropna().quantile(0.05)
     feat["q05_roll_std_1500"] = df_x.rolling(1500).std().dropna().quantile(0.05)
     feat["q05_roll_std_1000"] = df_x.rolling(1000).std().dropna().quantile(0.05)
     feat["q01_roll_mean_1500"] = df_x.rolling(1500).mean().dropna().quantile(0.01)
     feat["q99_roll_mean_1500"] = df_x.rolling(1500).mean().dropna().quantile(0.99)
+
+    feat["ave10"] = stats.trim_mean(df_x, 0.1)
+
+    # Pre Main
+    feat["num_peaks_10"] = feature_calculators.number_peaks(df_x, 10)
+    feat["percentile_roll_std_5"] = np.percentile(df_x.rolling(10000).std().dropna().values, 5)
+    feat["afc_50"] = feature_calculators.autocorrelation(df_x, 50)
 
     return feat
 
@@ -64,13 +79,13 @@ def make_train_set():
     data = []
     df_x = df.x
     df_y = df.y
-    for loc_end in tqdm.tqdm(df.index[TEST_SIZE::TEST_SIZE]):
-        first_time = df_y.iloc[loc_end - TEST_SIZE]
+    for loc_end in tqdm.tqdm(range(TEST_SIZE - 1, len(df), TEST_SIZE)):
+        first_time = df_y.iloc[loc_end - TEST_SIZE + 1]
         last_time = df_y.iloc[loc_end]
         # В середине блока произошло землятресение и отсчет времени начался заново
         if first_time < last_time:
             continue
-        feat = make_features(df_x.iloc[loc_end - TEST_SIZE:loc_end])
+        feat = make_features(df_x.iloc[loc_end - TEST_SIZE + 1:loc_end + 1])
         feat["y"] = last_time
         data.append(feat)
     data = pd.DataFrame(data).sort_index(axis=1)
