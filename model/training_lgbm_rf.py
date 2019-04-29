@@ -1,4 +1,4 @@
-"""Обучение модели - LightGBM."""
+"""Обучение модели - LightGBM RF-like."""
 import logging
 import time
 
@@ -14,30 +14,29 @@ from model.conf import SEED
 LOGGER = logging.getLogger(__name__)
 
 ITERATIONS = 10000
-LEARNING_RATE = 0.01
 
 CLF_PARAMS = dict(
-    # learning_rate=LEARNING_RATE,
+    learning_rate=None,
     metric="mae",
     objective="mae",
     num_leaves=31,
     min_data_in_leaf=20,
     max_depth=-1,
-    bagging_freq=0,
-    bagging_fraction=1.0,
-    feature_fraction=1.0,
-    boost="gbdt",
+    bagging_freq=1,
+    bagging_fraction=0.632,
+    feature_fraction=0.632,
+    boost="rf",
     seed=SEED,
     verbosity=-1,
 )
 
 DROP = [
-    "num_peaks_10", "percentile_roll_std_5", "afc_50"
+    "std_roll_half1", "percentile_roll_std_5", "q05_roll_std_375", "std_roll_half2"
 ]
 
 
-def train_light_gbm():
-    """Обучение LightGBM RF."""
+def train_light_gbm_rf():
+    """Обучение LightGBM."""
     x_train, y_train = processing.train_set()
     x_test = processing.test_set()
 
@@ -85,11 +84,11 @@ def train_light_gbm():
     stamp = (
         f"{time.strftime('%Y-%m-%d_%H-%M')}_"
         f"{np.mean(scores):0.3f}_"
-        f"{np.mean(scores) + np.std(scores) * 2 / len(scores) ** 0.5:0.3f}_lgbm")
+        f"{np.mean(scores) + np.std(scores) * 2 / len(scores) ** 0.5:0.3f}_lgbm_rf")
     y_oof.to_csv(conf.DATA_PROCESSED + f"oof_{stamp}.csv", header=True)
     y_pred.to_csv(conf.DATA_PROCESSED + f"sub_{stamp}.csv", header=True)
     print(pd.DataFrame(feat_importance, index=x_train.columns, columns=["value"]).sort_values("value", ascending=False))
 
 
 if __name__ == '__main__':
-    train_light_gbm()
+    train_light_gbm_rf()
