@@ -31,14 +31,14 @@ CLF_PARAMS = dict(
 
 SOURCE = [
     "sub_2019-04-29_10-00_1.938_1.974_cat.csv",
-    "sub_2019-04-29_10-57_1.940_1.974_lgbm.csv",
+    "sub_2019-05-24_16-46_1.941_1.969_lgbm.csv",
     "sub_2019-04-29_17-42_2.014_2.045_lgbm_rf.csv",
-    "sub_2019-05-02_17-05_2.043_2.073_ext.csv"
+    "sub_2019-05-24_18-07_2.012_2.044_ext.csv"
 ]
 
 
 DROP = [
-    "oof_ext", "range", "mean", "max", "std"
+    "range", "max", "median",
 ]
 
 

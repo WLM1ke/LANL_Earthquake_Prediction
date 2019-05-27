@@ -1,4 +1,4 @@
-"""Обучение модели - LightGBM RF-like."""
+"""Обучение модели - LightGBM."""
 import logging
 import time
 
@@ -14,36 +14,41 @@ from model.conf import SEED
 LOGGER = logging.getLogger(__name__)
 
 ITERATIONS = 10000
+LEARNING_RATE = 0.01
 
 CLF_PARAMS = dict(
-    learning_rate=None,
+    # learning_rate=LEARNING_RATE,
     metric="mae",
     objective="mae",
     num_leaves=31,
     min_data_in_leaf=20,
     max_depth=-1,
-    bagging_freq=1,
-    bagging_fraction=0.632,
-    feature_fraction=0.632,
-    boost="rf",
+    bagging_freq=0,
+    bagging_fraction=1.0,
+    feature_fraction=1.0,
+    boost="gbdt",
     seed=SEED,
     verbosity=-1,
 )
 
 DROP = [
-    "std_roll_half1", "percentile_roll_std_5", "q05_roll_std_375", "std_roll_half2"
+    "welch_clipped_4", "welch_clipped_22",  #
+    "welch_clipped_2", "welch_clipped_18", "welch_clipped_15", "welch_clipped_3",  #
+    "welch_clipped_20",  #
+    "welch_clipped_6", "q05_roll_std_375", "welch_clipped_19", "welch_clipped_13", "welch_clipped_16",
+    "welch_clipped_9", "welch_clipped_26", "welch_clipped_0", "welch_clipped_12", "welch_clipped_23",  #
 ]
 
 
-def train_light_gbm_rf():
-    """Обучение LightGBM."""
+def train_light_gbm():
+    """Обучение LightGBM RF."""
     x_train, y_train = processing.train_set()
     x_test = processing.test_set()
 
     x_train.drop(DROP, axis=1, inplace=True)
     x_test.drop(DROP, axis=1, inplace=True)
 
-    y_oof = pd.Series(0, index=x_train.index, name="oof_lgbm_rf")
+    y_oof = pd.Series(0, index=x_train.index, name="oof_lgbm")
     y_pred = pd.Series(0, index=x_test.index, name="time_to_failure")
     trees = []
     scores = []
@@ -84,11 +89,11 @@ def train_light_gbm_rf():
     stamp = (
         f"{time.strftime('%Y-%m-%d_%H-%M')}_"
         f"{np.mean(scores):0.3f}_"
-        f"{np.mean(scores) + np.std(scores) * 2 / len(scores) ** 0.5:0.3f}_lgbm_rf")
+        f"{np.mean(scores) + np.std(scores) * 2 / len(scores) ** 0.5:0.3f}_lgbm")
     y_oof.to_csv(conf.DATA_PROCESSED + f"oof_{stamp}.csv", header=True)
     y_pred.to_csv(conf.DATA_PROCESSED + f"sub_{stamp}.csv", header=True)
     print(pd.DataFrame(feat_importance, index=x_train.columns, columns=["value"]).sort_values("value", ascending=False))
 
 
 if __name__ == '__main__':
-    train_light_gbm_rf()
+    train_light_gbm()

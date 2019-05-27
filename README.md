@@ -24,12 +24,6 @@ https://arxiv.org/pdf/1801.04503.pdf
 https://www.kaggle.com/c/LANL-Earthquake-Prediction/discussion/90791
 https://www.kaggle.com/tarunpaparaju/lanl-earthquake-prediction-new-features
 https://arxiv.org/pdf/1708.03888.pdf
-https://github.com/CyberZHG/keras-multi-head
-
-https://www.kaggle.com/leighplt/laboratory-acoustic-data-exp4581 
-+ https://www.kaggle.com/leighplt/laboratory-ac-data-exp-p4581
-+ https://www.kaggle.com/c/LANL-Earthquake-Prediction/discussion/90880
-
-
 
 https://www.kaggle.com/kashnitsky/how-to-download-submission-file-without-committing
+https://www.tensorflow.org/api_docs/python/tf/signal/frame

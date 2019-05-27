@@ -74,7 +74,7 @@ def train_light_gbm():
         y_oof.iloc[index_valid] = clf.predict(x_train.iloc[index_valid], num_iteration=clf.best_iteration)
         y_pred += clf.predict(x_test, num_iteration=clf.best_iteration) / K_FOLDS.get_n_splits()
 
-        feat_importance += clf.feature_importance() / K_FOLDS.get_n_splits()
+        feat_importance += clf.feature_importance("gain") / K_FOLDS.get_n_splits()
         print("\n")
 
     LOGGER.info(f"Количество деревьев: {sorted(trees)}")

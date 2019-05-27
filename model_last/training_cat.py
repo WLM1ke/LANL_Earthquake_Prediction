@@ -1,4 +1,4 @@
-"""Стекинг результатов нескольких моделей."""
+"""Обучение модели - catboost."""
 import logging
 import time
 
@@ -20,7 +20,7 @@ CLF_PARAMS = dict(
     loss_function="MAE",
     eval_metric=None,
     random_state=SEED,
-    depth=6,
+    depth=10,
     od_type="Iter",
     od_wait=ITERATIONS // 10,
     verbose=ITERATIONS // 100,
@@ -29,58 +29,29 @@ CLF_PARAMS = dict(
     allow_writing_files=False,
 )
 
-SOURCE = [
-    "sub_2019-04-29_10-00_1.938_1.974_cat.csv",
-    "sub_2019-04-29_10-57_1.940_1.974_lgbm.csv",
-    "sub_2019-04-29_17-42_2.014_2.045_lgbm_rf.csv",
-    "sub_2019-05-02_17-05_2.043_2.073_ext.csv"
-]
-
-
 DROP = [
-    "oof_ext", "range", "mean", "max", "std"
+    "welch_clipped_4", "welch_clipped_22",  #
+    "welch_clipped_2", "welch_clipped_18", "welch_clipped_15", "welch_clipped_3",  #
+    "welch_clipped_20",  #
+    "welch_clipped_6", "welch_clipped_19", "welch_clipped_13", "welch_clipped_16",
+    "welch_clipped_9", "welch_clipped_26", "welch_clipped_0", "welch_clipped_12", "welch_clipped_23",  #
+    "welch_clipped_10",  #
+    "welch_clipped_31", "welch_clipped_1",
+    "welch_clipped_5",  #
+    "welch_clipped_30", "welch_clipped_21",
+    "welch_clipped_14",  #
+    "welch_28", "welch_clipped_17",
+    "welch_clipped_32",
+    "welch_clipped_7",
+    "welch_clipped_29",
+    "q05_roll_std_1000"  #
 ]
 
 
-def load_oof():
-    """Загрузка OOF предсказаний в единый фрейм."""
-    data = []
-    for name in SOURCE:
-        df = pd.read_csv(conf.DATA_PROCESSED + "oof" + name[3:], header=0, index_col=0)
-        data.append(df)
-    data = pd.concat(data, axis=1)
-    return data
-
-
-def load_sub():
-    """Загрузка тестовых предсказаний в единый фрейм."""
-    data = []
-    for name in SOURCE:
-        df = pd.read_csv(conf.DATA_PROCESSED + name, header=0, index_col=0)
-        data.append(df)
-    data = pd.concat(data, axis=1)
-    return data
-
-
-def add_stacking_feat(df):
-    """Формирование дополнительных признаков для стекинга."""
-    n_base_feat = df.shape[1]
-    df["min"] = df.iloc[:, :n_base_feat].min(axis=1)
-    df["max"] = df.iloc[:, :n_base_feat].max(axis=1)
-    df["mean"] = df.iloc[:, :n_base_feat].mean(axis=1)
-    df["median"] = df.iloc[:, :n_base_feat].median(axis=1)
-    df["std"] = df.iloc[:, :n_base_feat].std(axis=1)
-    df["range"] = df["max"] - df["min"]
-
-    return df
-
-
-def stack_catboost():
-    """Стекинг catboost."""
-    x_train = add_stacking_feat(load_oof())
-    _, y_train = processing.train_set()
-    x_test = add_stacking_feat(load_sub())
-    x_test.columns = x_train.columns
+def train_catboost():
+    """Обучение catboost."""
+    x_train, y_train = processing.train_set()
+    x_test = processing.test_set()
 
     x_train.drop(DROP, axis=1, inplace=True)
     x_test.drop(DROP, axis=1, inplace=True)
@@ -91,7 +62,7 @@ def stack_catboost():
             cat_features=None,
             weight=None
         )
-    y_oof = pd.Series(0, index=x_train.index, name="oof_y")
+    y_oof = pd.Series(0, index=x_train.index, name="oof_cat")
     y_pred = pd.Series(0, index=x_test.index, name="time_to_failure")
     trees = []
     scores = []
@@ -132,11 +103,11 @@ def stack_catboost():
     stamp = (
         f"{time.strftime('%Y-%m-%d_%H-%M')}_"
         f"{np.mean(scores):0.3f}_"
-        f"{np.mean(scores) + np.std(scores) * 2 / len(scores) ** 0.5:0.3f}_stk")
+        f"{np.mean(scores) + np.std(scores) * 2 / len(scores) ** 0.5:0.3f}_cat")
     y_oof.to_csv(conf.DATA_PROCESSED + f"oof_{stamp}.csv", header=True)
     y_pred.to_csv(conf.DATA_PROCESSED + f"sub_{stamp}.csv", header=True)
     print(feat_importance.sort_values("value", ascending=False))
 
 
 if __name__ == '__main__':
-    stack_catboost()
+    train_catboost()
