@@ -6,8 +6,8 @@ import catboost
 import pandas as pd
 import numpy as np
 
-from model import conf
-from model import processing
+from model_last import conf
+from model_last import processing
 from model.conf import K_FOLDS
 from model.conf import SEED
 
@@ -43,8 +43,7 @@ DROP = [
     "welch_28", "welch_clipped_17",
     "welch_clipped_32",
     "welch_clipped_7",
-    "welch_clipped_29",
-    "q05_roll_std_1000"  #
+    "welch_clipped_29",  #
 ]
 
 

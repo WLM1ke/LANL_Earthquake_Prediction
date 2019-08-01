@@ -74,12 +74,6 @@ def make_features(df_x):
     for num in list(range(33)):
         feat[f"welch_clipped_{num}"] = welch[num]
 
-    feat['abs_q80'] = np.quantile(np.abs(df_x), 0.80)
-    feat['abs_q50'] = np.quantile(np.abs(df_x), 0.50)
-    feat['q75'] = np.quantile(df_x, 0.75)
-    feat['q80'] = np.quantile(df_x, 0.80)
-    feat['q90'] = np.quantile(df_x, 0.90)
-
     return feat
 
 

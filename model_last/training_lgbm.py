@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 
 from model import conf
-from model import processing
+from model_last import processing
 from model.conf import K_FOLDS
 from model.conf import SEED
 
@@ -32,11 +32,9 @@ CLF_PARAMS = dict(
 )
 
 DROP = [
-    "welch_clipped_4", "welch_clipped_22",  #
-    "welch_clipped_2", "welch_clipped_18", "welch_clipped_15", "welch_clipped_3",  #
-    "welch_clipped_20",  #
+    "welch_clipped_22", "welch_clipped_2", "welch_clipped_18", "welch_clipped_15", "welch_clipped_3",
     "welch_clipped_6", "q05_roll_std_375", "welch_clipped_19", "welch_clipped_13", "welch_clipped_16",
-    "welch_clipped_9", "welch_clipped_26", "welch_clipped_0", "welch_clipped_12", "welch_clipped_23",  #
+    "welch_clipped_26", "welch_clipped_0", "welch_clipped_12", "welch_clipped_23",  #
 ]
 
 
